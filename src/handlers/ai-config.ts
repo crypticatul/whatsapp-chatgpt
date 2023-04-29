@@ -7,22 +7,21 @@ import { ICommandDefinition } from "../types/commands";
 import { GptModule } from "../commands/gpt";
 import { TranscriptionModule } from "../commands/transcription";
 import { TTSModule } from "../commands/tts";
+import { StableDiffusionModule } from "../commands/stable-diffusion";
 
 import config from "../config";
 
-let aiConfig: IAiConfig;
+let aiConfig: IAiConfig = {
+	dalle: {
+		size: dalleImageSize["512x512"]
+	},
+	// chatgpt: {}
+	commandsMap: {}
+};
 
 const initAiConfig = () => {
-	aiConfig = {
-		dalle: {
-			size: dalleImageSize["512x512"]
-		},
-		// chatgpt: {}
-		commandsMap: {}
-	};
-
 	// Register commands
-	[ChatModule, GeneralModule, GptModule, TranscriptionModule, TTSModule].forEach((module) => {
+	[ChatModule, GeneralModule, GptModule, TranscriptionModule, TTSModule, StableDiffusionModule].forEach((module) => {
 		aiConfig.commandsMap[module.key] = module.register();
 	});
 	console.log("[AI-Config] Initialized AI config");
@@ -84,14 +83,14 @@ const handleMessageAIConfig = async (message: Message, prompt: any) => {
 
 		const target: string = args[0];
 		const type: string = args[1];
-		const value: string | undefined = args.length == 3 ? args[2] : undefined;
+		const value: string | undefined = args.length >= 3 ? args.slice(2).join(" ") : undefined;
 
 		if (!(target in aiConfigTarget) && !(target in aiConfig.commandsMap)) {
 			message.reply("Invalid target, please use one of the following: " + Object.keys(aiConfigTarget).join(", "));
 			return;
 		}
 
-		if (aiConfig.commandsMap[target]) {
+		if (target && type && aiConfig.commandsMap[target]) {
 			if (aiConfig.commandsMap[target][type]) {
 				aiConfig.commandsMap[target][type].execute(message, value);
 			} else {
@@ -100,7 +99,7 @@ const handleMessageAIConfig = async (message: Message, prompt: any) => {
 			return;
 		}
 
-		if (!(type in aiConfigTypes[target])) {
+		if (typeof aiConfigTypes[target] !== "object" || !(type in aiConfigTypes[target])) {
 			message.reply("Invalid type, please use one of the following: " + Object.keys(aiConfigTypes[target]).join(", "));
 			return;
 		}
@@ -125,9 +124,20 @@ export function getCommand(module: string, command: string): ICommandDefinition 
 
 export function getConfig(target: string, type: string): any {
 	if (aiConfig.commandsMap[target] && aiConfig.commandsMap[target][type]) {
+		if (typeof aiConfig.commandsMap[target][type].data === "function") {
+			return aiConfig.commandsMap[target][type].data();
+		}
 		return aiConfig.commandsMap[target][type].data;
 	}
 	return aiConfig[target][type];
+}
+
+export function executeCommand(target: string, type: string, message: Message, value?: string | undefined) {
+	if (aiConfig.commandsMap[target] && aiConfig.commandsMap[target][type]) {
+		if (typeof aiConfig.commandsMap[target][type].execute === "function") {
+			return aiConfig.commandsMap[target][type].execute(message, value);
+		}
+	}
 }
 
 export { aiConfig, handleMessageAIConfig, initAiConfig };

@@ -14,8 +14,8 @@ interface IConfig {
 	whitelistedPhoneNumbers: string[];
 
 	// OpenAI
-	openAIAPIKey: string;
 	openAIModel: string;
+	openAIAPIKeys: string[];
 	maxModelTokens: number;
 	prePrompt: string | undefined;
 
@@ -24,6 +24,7 @@ interface IConfig {
 	prefixSkippedForMe: boolean;
 	gptPrefix: string;
 	dallePrefix: string;
+	stableDiffusionPrefix: string;
 	langChainPrefix: string;
 	resetPrefix: string;
 	aiConfigPrefix: string;
@@ -58,7 +59,7 @@ interface IConfig {
 export const config: IConfig = {
 	whitelistedPhoneNumbers: process.env.WHITELISTED_PHONE_NUMBERS?.split(",") || [],
 
-	openAIAPIKey: process.env.OPENAI_API_KEY || "", // Default: ""
+	openAIAPIKeys: (process.env.OPENAI_API_KEYS || process.env.OPENAI_API_KEY || "").split(",").filter((key) => !!key), // Default: []
 	openAIModel: process.env.OPENAI_GPT_MODEL || "gpt-3.5-turbo", // Default: gpt-3.5-turbo
 	maxModelTokens: getEnvMaxModelTokens(), // Default: 4096
 	prePrompt: process.env.PRE_PROMPT, // Default: undefined
@@ -68,6 +69,7 @@ export const config: IConfig = {
 	prefixSkippedForMe: getEnvBooleanWithDefault("PREFIX_SKIPPED_FOR_ME", true), // Default: true
 	gptPrefix: process.env.GPT_PREFIX || "!gpt", // Default: !gpt
 	dallePrefix: process.env.DALLE_PREFIX || "!dalle", // Default: !dalle
+	stableDiffusionPrefix: process.env.STABLE_DIFFUSION_PREFIX || "!sd", // Default: !sd
 	resetPrefix: process.env.RESET_PREFIX || "!reset", // Default: !reset
 	aiConfigPrefix: process.env.AI_CONFIG_PREFIX || "!config", // Default: !config
 	langChainPrefix: process.env.LANGCHAIN_PREFIX || "!lang", // Default: !lang
