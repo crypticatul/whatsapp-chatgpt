@@ -10,7 +10,7 @@ import * as cli from "../cli/ui";
 // ChatGPT & DALLE
 import { handleMessageGPT, handleDeleteConversation } from "../handlers/gpt";
 import { handleMessageDALLE } from "../handlers/dalle";
-import { handleMessageAIConfig, getConfig } from "../handlers/ai-config";
+import { handleMessageAIConfig, getConfig, executeCommand } from "../handlers/ai-config";
 import { handleMessageLangChain } from "../handlers/langchain";
 
 // Speech API & Whisper
@@ -43,18 +43,21 @@ async function handleIncomingMessage(message: Message) {
 			return;
 		}
 	}
-  
+
 	// Ignore groupchats if disabled
-  if ((await message.getChat()).isGroup && !config.groupchatsEnabled) return;
+	if ((await message.getChat()).isGroup && !config.groupchatsEnabled) return;
 
 	const selfNotedMessage = message.fromMe && message.hasQuotedMsg === false && message.from === message.to;
-	const whitelistedPhoneNumbers = getConfig("general", "whitelist");
+	
 
-	if (!selfNotedMessage && whitelistedPhoneNumbers.length > 0 && !whitelistedPhoneNumbers.includes(message.from)) {
-		cli.print(`Ignoring message from ${message.from} because it is not whitelisted.`);
-		return;
+	if (config.whitelistedEnabled) {
+		const whitelistedPhoneNumbers = getConfig("general", "whitelist");
+	
+		if (!selfNotedMessage && whitelistedPhoneNumbers.length > 0 && !whitelistedPhoneNumbers.includes(message.from)) {
+			cli.print(`Ignoring message from ${message.from} because it is not whitelisted.`);
+			return;
+		}
 	}
-
 	// Transcribe audio
 	if (message.hasMedia) {
 		const media = await message.downloadMedia();
@@ -138,7 +141,6 @@ async function handleIncomingMessage(message: Message) {
 		return;
 	}
 
-
 	// GPT (!lang <prompt>)
 	if (startsWithIgnoreCase(messageString, config.langChainPrefix)) {
 		const prompt = messageString.substring(config.langChainPrefix.length + 1);
@@ -150,6 +152,13 @@ async function handleIncomingMessage(message: Message) {
 	if (startsWithIgnoreCase(messageString, config.dallePrefix)) {
 		const prompt = messageString.substring(config.dallePrefix.length + 1);
 		await handleMessageDALLE(message, prompt);
+		return;
+	}
+
+	// Stable Diffusion (!sd <prompt>)
+	if (startsWithIgnoreCase(messageString, config.stableDiffusionPrefix)) {
+		const prompt = messageString.substring(config.stableDiffusionPrefix.length + 1);
+		await executeCommand("sd", "generate", message, prompt);
 		return;
 	}
 
